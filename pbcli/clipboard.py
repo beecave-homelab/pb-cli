@@ -1,16 +1,34 @@
 """High-level selection logic for Linux-only pb-cli-linux."""
 from __future__ import annotations
 
-from typing import Literal
+from enum import Enum
+from typing import Union
 
 from . import backends as be
 
-BackendName = Literal["auto", "pyclip", "wl-clipboard", "tmux", "file"]
+
+class Backend(str, Enum):
+    AUTO = "auto"
+    PYCLIP = "pyclip"
+    WL_CLIPBOARD = "wl-clipboard"
+    TMUX = "tmux"
+    FILE = "file"
 
 
-def _choose_for_copy(preferred: BackendName = "auto") -> BackendName:
-    if preferred != "auto":
-        return preferred
+BackendName = Union[Backend, str]  # accept enum or raw string
+
+
+def _norm(backend: BackendName) -> str:
+    """Normalize Backend/str into a plain lowercase string."""
+    if isinstance(backend, Backend):
+        return backend.value
+    return str(backend)
+
+
+def _choose_for_copy(preferred: BackendName = Backend.AUTO) -> str:
+    b = _norm(preferred)
+    if b != "auto":
+        return b
     if be.pyclip_available():
         return "pyclip"
     if be.wl_available():
@@ -20,9 +38,10 @@ def _choose_for_copy(preferred: BackendName = "auto") -> BackendName:
     return "file"
 
 
-def _choose_for_paste(preferred: BackendName = "auto") -> BackendName:
-    if preferred != "auto":
-        return preferred
+def _choose_for_paste(preferred: BackendName = Backend.AUTO) -> str:
+    b = _norm(preferred)
+    if b != "auto":
+        return b
     if be.pyclip_available():
         return "pyclip"
     if be.wl_available():
@@ -32,7 +51,8 @@ def _choose_for_paste(preferred: BackendName = "auto") -> BackendName:
     return "file"
 
 
-def copy(text: str, backend: BackendName = "auto") -> None:
+def copy(text: str, backend: BackendName = Backend.AUTO) -> None:
+    """Copy text using the chosen backend."""
     b = _choose_for_copy(backend)
     if b == "pyclip":
         be.pyclip_copy(text)
@@ -46,7 +66,8 @@ def copy(text: str, backend: BackendName = "auto") -> None:
         raise ValueError(f"Unknown backend: {backend}")
 
 
-def paste(backend: BackendName = "auto") -> str:
+def paste(backend: BackendName = Backend.AUTO) -> str:
+    """Paste text using the chosen backend."""
     b = _choose_for_paste(backend)
     if b == "pyclip":
         return be.pyclip_paste()
