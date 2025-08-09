@@ -1,6 +1,6 @@
 [project]
 name = "pb-cli"
-version = "0.5.0"
+version = "0.5.1"
 description = "Linux-only pbcopy/pbpaste for CLI: pyclip → wl-clipboard → tmux → file (no X11 deps)"
 readme = "README.md"
 authors = [{name = "elvee"}]
