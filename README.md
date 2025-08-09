@@ -21,6 +21,18 @@ sudo apt install wl-clipboard        # or dnf/pacman equivalent
 sudo apt install tmux
 ```
 
+## Install (with pipx)
+
+```bash
+# See the [pipx installation docs](https://pipx.pypa.io/latest/installation/) for more information
+python3 -m pip install --user pipx
+python3 -m pipx ensurepath
+```
+
+```bash
+pipx install "git+https://github.com/beecave-homelab/pb-cli.git"
+```
+
 ## Install (with PDM)
 
 ```bash
