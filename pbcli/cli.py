@@ -1,28 +1,24 @@
 """Typer-based CLI for pb-cli-linux (pyclip-first).
 
 Provides console scripts: `pb-cli` (grouped), plus `pbcopy` and `pbpaste`.
-
-Author: elvee
-Date: 2025-08-09
 """
 from __future__ import annotations
 
 import sys
-from typing import Literal
-
 import typer
 
-from .clipboard import copy as do_copy, paste as do_paste
+from .clipboard import copy as do_copy, paste as do_paste, Backend
 
-BackendName = Literal["auto", "pyclip", "wl-clipboard", "tmux", "file"]
-
-app = typer.Typer(help="pb-cli-linux: Linux-only pbcopy/pbpaste (pyclip-first)", add_completion=False)
+app = typer.Typer(
+    help="pb-cli-linux: Linux-only pbcopy/pbpaste (pyclip → wl-clipboard → tmux → file)",
+    add_completion=False,
+)
 
 
 @app.command("copy")
 def cmd_copy(
-    backend: BackendName = typer.Option(
-        "auto",
+    backend: Backend = typer.Option(  # type: ignore[call-overload]
+        Backend.AUTO,
         "--backend",
         help="Backend: auto|pyclip|wl-clipboard|tmux|file (default: auto).",
         case_sensitive=False,
@@ -42,8 +38,8 @@ def cmd_copy(
 
 @app.command("paste")
 def cmd_paste(
-    backend: BackendName = typer.Option(
-        "auto",
+    backend: Backend = typer.Option(  # type: ignore[call-overload]
+        Backend.AUTO,
         "--backend",
         help="Backend: auto|pyclip|wl-clipboard|tmux|file (default: auto).",
         case_sensitive=False,
@@ -56,9 +52,10 @@ def cmd_paste(
 
 
 def pbcopy(
-    backend: BackendName = "auto",
+    backend: Backend = Backend.AUTO,
     trim_final_newline: bool = False,
 ) -> None:
+    """Single-command pbcopy entrypoint."""
     data = sys.stdin.read()
     if trim_final_newline and data.endswith("\n"):
         data = data[:-1]
@@ -66,8 +63,9 @@ def pbcopy(
 
 
 def pbpaste(
-    backend: BackendName = "auto",
+    backend: Backend = Backend.AUTO,
 ) -> None:
+    """Single-command pbpaste entrypoint."""
     out = do_paste(backend=backend)  # type: ignore[arg-type]
     sys.stdout.write(out)
     sys.stdout.flush()
