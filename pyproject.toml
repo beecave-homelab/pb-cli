@@ -1,0 +1,35 @@
+[project]
+name = "pb-cli"
+version = "0.2.0"
+description = "Headless-friendly pbcopy/pbpaste for SSH terminals (OSC52 → tmux → pyperclip → file)"
+readme = "README.md"
+authors = [{name = "elvee"}]
+requires-python = ">=3.8"
+dependencies = [
+    "pyperclip>=1.8",
+    "typer>=0.12.0",
+]
+
+[project.license]
+text = "MIT License"
+
+[project.urls]
+Homepage = "https://example.com/pb-cli"
+Repository = "https://example.com/pb-cli.git"
+
+[project.scripts]
+pbcopy = "pbcli.cli:run_pbcopy"
+pbpaste = "pbcli.cli:run_pbpaste"
+
+[build-system]
+requires = ["pdm-backend"]
+build-backend = "pdm.backend"
+
+[tool.ruff]
+line-length = 100
+target-version = "py38"
+exclude = ["build", "dist", ".venv"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "W"]
+ignore = ["E203"]
