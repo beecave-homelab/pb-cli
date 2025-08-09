@@ -1,6 +1,6 @@
-"""Typer-based CLI for pb-cli.
+"""Typer-based CLI for pb-cli-linux (pyclip-first).
 
-Provides console scripts: `pbcopy` and `pbpaste`.
+Provides console scripts: `pb-cli` (grouped), plus `pbcopy` and `pbpaste`.
 
 Author: elvee
 Date: 2025-08-09
@@ -14,14 +14,17 @@ import typer
 
 from .clipboard import copy as do_copy, paste as do_paste
 
-BackendName = Literal["auto", "osc52", "tmux", "pyperclip", "file"]
+BackendName = Literal["auto", "pyclip", "wl-clipboard", "tmux", "file"]
+
+app = typer.Typer(help="pb-cli-linux: Linux-only pbcopy/pbpaste (pyclip-first)", add_completion=False)
 
 
-def pbcopy(
-    backend: BackendName = typer.Option(  # type: ignore[call-overload]
+@app.command("copy")
+def cmd_copy(
+    backend: BackendName = typer.Option(
         "auto",
         "--backend",
-        help="Select backend: auto|osc52|tmux|pyperclip|file (default: auto).",
+        help="Backend: auto|pyclip|wl-clipboard|tmux|file (default: auto).",
         case_sensitive=False,
     ),
     trim_final_newline: bool = typer.Option(
@@ -37,25 +40,46 @@ def pbcopy(
     do_copy(data, backend=backend)  # type: ignore[arg-type]
 
 
-def pbpaste(
-    backend: BackendName = typer.Option(  # type: ignore[call-overload]
+@app.command("paste")
+def cmd_paste(
+    backend: BackendName = typer.Option(
         "auto",
         "--backend",
-        help="Select backend: auto|tmux|pyperclip|file (default: auto).",
+        help="Backend: auto|pyclip|wl-clipboard|tmux|file (default: auto).",
         case_sensitive=False,
     ),
 ) -> None:
-    """Print clipboard contents using the selected backend."""
+    """Print clipboard contents via the selected backend."""
     out = do_paste(backend=backend)  # type: ignore[arg-type]
     sys.stdout.write(out)
     sys.stdout.flush()
 
 
+def pbcopy(
+    backend: BackendName = "auto",
+    trim_final_newline: bool = False,
+) -> None:
+    data = sys.stdin.read()
+    if trim_final_newline and data.endswith("\n"):
+        data = data[:-1]
+    do_copy(data, backend=backend)  # type: ignore[arg-type]
+
+
+def pbpaste(
+    backend: BackendName = "auto",
+) -> None:
+    out = do_paste(backend=backend)  # type: ignore[arg-type]
+    sys.stdout.write(out)
+    sys.stdout.flush()
+
+
+def run_main() -> None:
+    app()
+
+
 def run_pbcopy() -> None:
-    """Entry point for the `pbcopy` script."""
     typer.run(pbcopy)
 
 
 def run_pbpaste() -> None:
-    """Entry point for the `pbpaste` script."""
     typer.run(pbpaste)

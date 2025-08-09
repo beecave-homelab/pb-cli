@@ -1,24 +1,23 @@
-"""Clipboard backends used by pb-cli.
+"""Linux-only clipboard backends for pb-cli-linux (no X11 xclip/xsel).
 
-Backends:
-- OSC52: write to client clipboard via terminal escape sequence (copy-only).
-- tmux: use tmux buffers for copy/paste (server-side; can forward to system clipboard).
-- pyperclip: cross-platform clipboard library (requires a system provider on Linux).
-- file: local cache file in ~/.local/share/pb-cli/clipboard.txt
+Order of preference:
+- pyclip (abstracts Wayland/X11 when possible)
+- wl-clipboard (wl-copy/wl-paste)
+- tmux (server buffer)
+- file (local cache)
 
 Author: elvee
 Date: 2025-08-09
 """
 from __future__ import annotations
 
-import base64
 import os
 import shutil
 import subprocess
 from pathlib import Path
 
 
-CACHE_DIR = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / "pb-cli"
+CACHE_DIR = Path(os.environ.get("XDG_DATA_HOME", Path.home() / ".local" / "share")) / "pb-cli-linux"
 CACHE_FILE = CACHE_DIR / "clipboard.txt"
 
 
@@ -26,62 +25,58 @@ class BackendError(RuntimeError):
     """Raised when a backend operation fails."""
 
 
-# ---------- OSC52 (copy only) ----------
-def osc52_available() -> bool:
-    """Return True if writing OSC52 makes sense (a TTY is present)."""
+# ---------- pyclip (preferred) ----------
+def pyclip_available() -> bool:
     try:
-        with open("/dev/tty", "wb"):
-            return True
-    except OSError:
-        return False
-
-
-def osc52_copy(text: str) -> None:
-    """Copy text to the *client* clipboard using OSC52 escape codes.
-
-    Writes to /dev/tty. Inside tmux, wraps the sequence for passthrough.
-    """
-    b64 = base64.b64encode(text.encode("utf-8")).decode("ascii")
-    osc = f"\033]52;c;{b64}"
-    bel = "\a"
-    st = "\033\"  # String Terminator
-
-    if os.environ.get("TMUX"):
-        payload = f"\033Ptmux;\033{osc}{bel}{st}"
-    else:
-        payload = f"{osc}{bel}"
-
-    try:
-        with open("/dev/tty", "wb", buffering=0) as tty:
-            tty.write(payload.encode("utf-8", "replace"))
-            tty.flush()
-    except OSError as exc:
-        raise BackendError(f"OSC52 write failed: {exc}") from exc
-
-
-# ---------- tmux ----------
-def _have_tmux() -> bool:
-    return shutil.which("tmux") is not None
-
-
-def tmux_available() -> bool:
-    """Return True if tmux is available and responsive."""
-    if not _have_tmux():
-        return False
-    try:
-        subprocess.run(
-            ["tmux", "display-message", "-p", "#{version}"],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
+        import pyclip  # noqa: F401
         return True
     except Exception:
         return False
 
 
+def pyclip_copy(text: str) -> None:
+    try:
+        import pyclip
+        pyclip.copy(text)
+    except Exception as exc:
+        raise BackendError(f"pyclip copy failed: {exc}") from exc
+
+
+def pyclip_paste() -> str:
+    try:
+        import pyclip
+        data = pyclip.paste(text=True)
+        return data if isinstance(data, str) else ""
+    except Exception as exc:
+        raise BackendError(f"pyclip paste failed: {exc}") from exc
+
+
+# ---------- wl-clipboard (Wayland) ----------
+def wl_available() -> bool:
+    return shutil.which("wl-copy") is not None and shutil.which("wl-paste") is not None
+
+
+def wl_copy(text: str) -> None:
+    try:
+        subprocess.run(["wl-copy"], input=text.encode("utf-8"), check=True)
+    except Exception as exc:
+        raise BackendError(f"wl-copy failed: {exc}") from exc
+
+
+def wl_paste() -> str:
+    try:
+        out = subprocess.check_output(["wl-paste", "--no-newline"])
+        return out.decode("utf-8", "replace")
+    except subprocess.CalledProcessError as exc:
+        raise BackendError(f"wl-paste failed: {exc}") from exc
+
+
+# ---------- tmux (server buffer) ----------
+def tmux_available() -> bool:
+    return shutil.which("tmux") is not None
+
+
 def tmux_copy(text: str) -> None:
-    """Copy text into tmux buffer (and forward to clipboard if configured)."""
     if not tmux_available():
         raise BackendError("tmux not available")
     try:
@@ -91,7 +86,6 @@ def tmux_copy(text: str) -> None:
 
 
 def tmux_paste() -> str:
-    """Return text from the tmux buffer."""
     if not tmux_available():
         raise BackendError("tmux not available")
     try:
@@ -101,32 +95,7 @@ def tmux_paste() -> str:
         raise BackendError(f"tmux paste failed: {exc}") from exc
 
 
-# ---------- pyperclip ----------
-def pyperclip_available() -> bool:
-    try:
-        import pyperclip  # noqa: F401
-    except Exception:
-        return False
-    return True
-
-
-def pyperclip_copy(text: str) -> None:
-    try:
-        import pyperclip
-        pyperclip.copy(text)
-    except Exception as exc:
-        raise BackendError(f"pyperclip copy failed: {exc}") from exc
-
-
-def pyperclip_paste() -> str:
-    try:
-        import pyperclip
-        return pyperclip.paste()
-    except Exception as exc:
-        raise BackendError(f"pyperclip paste failed: {exc}") from exc
-
-
-# ---------- file cache ----------
+# ---------- file (local cache) ----------
 def file_available() -> bool:
     return True
 

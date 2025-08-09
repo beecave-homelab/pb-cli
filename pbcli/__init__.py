@@ -1,6 +1,6 @@
-"""pb-cli – terminal-first pbcopy/pbpaste for SSH & headless.
+"""pb-cli-linux – Linux-only pbcopy/pbpaste.
 
-Package import name: `pbcli` (repo is `pb-cli`).
+Backends: pyclip, wl-clipboard, tmux, file.
 
 Author: elvee
 Date: 2025-08-09
